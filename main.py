@@ -24,3 +24,5 @@ while input_message != 'fim':
 
     input_message = input('Esperando input: ')
     messages.append({"role": "user", "content": input_message})
+
+link do tutorial    https://www.youtube.com/watch?v=VQZWtBW-Vbs&ab_channel=Alura    
