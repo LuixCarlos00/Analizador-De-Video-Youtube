@@ -1,44 +1,26 @@
-# main.py
-import pytube
 import openai
-import ffmpeg
 
-# Função para baixar o vídeo do YouTube
-def download_video(url):
-    yt = pytube.YouTube(url)
-    stream = yt.streams.filter(only_audio=True).first()
-    stream.download(output_path='downloads', filename='video.mp4')
+openai.api_key = 'sua_chave_api_aqui'  # Use variáveis de ambiente para segurança
 
-# Função para extrair áudio do vídeo
-def extract_audio(video_path):
-    audio_path = 'downloads/audio.mp3'
-    ffmpeg.input(video_path).output(audio_path).run()
-    return audio_path
+openai.api_key = 'chave_API';
 
-# Função para resumir o áudio usando OpenAI
-def summarize_audio(audio_path):
-    with open(audio_path, 'rb') as f:
-        audio_data = f.read()
+messages = [
+    {"role": "system", "content": "Você é um assistente."},
+]
 
-    # Substitua 'your-openai-api-key' com sua chave da API OpenAI
-    openai.api_key = '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'
-    
-    response = openai.Audio.transcriptions.create(
-        audio=audio_data,
-        model='whisper-1',  # Supondo que esteja usando o modelo Whisper
-        response_format='text'
+input_message = input('Esperando input: ')
+messages.append({"role": "user", "content": input_message})
+
+while input_message != 'fim':
+    response = openai.ChatCompletion.create(
+        model='gpt-3.5-turbo',
+        messages=messages,
+        temperature=1,
+        max_tokens=200
     )
-    
-    return response['text']
 
-# Função principal
-def main():
-    url = input("Insira o link do vídeo do YouTube: ")
-    download_video(url)
-    audio_path = extract_audio('downloads/video.mp4')
-    summary = summarize_audio(audio_path)
-    print("Resumo do vídeo: ")
-    print(summary)
+    resposta = response['choices'][0]['message']['content']
+    print("Resposta: ", resposta)
 
-if __name__ == "__main__":
-    main()
+    input_message = input('Esperando input: ')
+    messages.append({"role": "user", "content": input_message})
