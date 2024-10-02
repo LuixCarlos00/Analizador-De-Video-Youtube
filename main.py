@@ -12,7 +12,7 @@ def main():
     assistente_falante = True
     ligar_microfone = True
 
-    genai.configure(api_key=" ")
+    genai.configure(api_key="AIzaSyAXCVnzZWz04KnBYbR27yQhvbpLlWk3gvw")
     for m in genai.list_models():
         if 'generateContent' in m.supported_generation_methods:
             print(m.name)
