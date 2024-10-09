@@ -1,8 +1,23 @@
 from pytubefix import YouTube
 import re
+import os
 
-def download_video(video_url, output_path="C:/Users/Videos_Downloads/video.mp4"):
+def download_video(video_url, output_path=None):
     try:
+         
+        if output_path is None:
+              
+            user_home = os.path.expanduser("~")
+            output_path = os.path.join(user_home, "Videos_Downloads", "video.mp4")
+
+         
+        output_dir = os.path.dirname(output_path)
+
+         
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            print(f"Pasta criada: {output_dir}")
+
         yt = YouTube(video_url)
         stream = yt.streams.get_highest_resolution()
         stream.download(output_path=output_path)
