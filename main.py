@@ -1,35 +1,25 @@
-from youtube_transcript_api import YouTubeTranscriptApi
-from transformers import pipeline
+from pytubefix import YouTube
 import re
 
-def get_video_id(video_url):
-    match = re.search(r"(?<=v=|/)([0-9A-Za-z_-]{11})", video_url)
-    return match.group(0) if match else None
+def download_video(video_url, output_path="C:/Users/Videos_Downloads/video.mp4"):
+    try:
+        yt = YouTube(video_url)
+        stream = yt.streams.get_highest_resolution()
+        stream.download(output_path=output_path)
+        print(f"Vídeo baixado com sucesso e salvo em: {output_path}")
+    except Exception as e:
+        print(f"Ocorreu um erro ao baixar o vídeo: {e}")
 
-def get_video_transcript(video_id):
-    transcript = YouTubeTranscriptApi.get_transcript(video_id)
-    return ' '.join([entry['text'] for entry in transcript])
-
-def summarize_text(text):
-    summarizer = pipeline("summarization")
-    summary = summarizer(text, max_length=150, min_length=30, do_sample=False)
-    return summary[0]['summary_text']
+def is_valid_url(url):
+    regex = r'^(https?://)?(www\.)?(youtube\.com|youtu\.?be)/.+$'
+    return re.match(regex, url) is not None
 
 def main():
     video_url = input("Digite o link do vídeo do YouTube: ")
-    video_id = get_video_id(video_url)
-    
-    if not video_id:
-        print("ID do vídeo não encontrado. Verifique o link e tente novamente.")
-        return
-    
-    try:
-        transcript = get_video_transcript(video_id)
-        summary = summarize_text(transcript)
-        print("Resumo do vídeo:")
-        print(summary)
-    except Exception as e:
-        print(f"Ocorreu um erro: {e}")
+    if is_valid_url(video_url):
+        download_video(video_url)
+    else:
+        print("URL inválido. Por favor, insira um link válido do YouTube.")
 
 if __name__ == "__main__":
     main()
