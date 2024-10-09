@@ -8,7 +8,7 @@ def download_video(video_url, output_path=None):
         if output_path is None:
               
             user_home = os.path.expanduser("~")
-            output_path = os.path.join(user_home, "Videos_Downloads", "video.mp4")
+            output_path = os.path.join(user_home, "Videos_Downloads" )
 
          
         output_dir = os.path.dirname(output_path)
@@ -30,11 +30,23 @@ def is_valid_url(url):
     return re.match(regex, url) is not None
 
 def main():
-    video_url = input("Digite o link do vídeo do YouTube: ")
-    if is_valid_url(video_url):
-        download_video(video_url)
-    else:
-        print("URL inválido. Por favor, insira um link válido do YouTube.")
+    while True:
+        print("Selecione uma opção:")
+        print("1 - Baixar vídeo")
+        print("2 - Sair")
+        choice = input("Opção: ")
+        if choice == "1":
+            video_url = input("Digite o link do vídeo do YouTube: ")
+            if is_valid_url(video_url):
+                download_video(video_url)
+            else:
+                print("URL inválido. Por favor, insira um link válido do YouTube.")
+        elif choice == "2":
+            print("Saindo...")
+            break  # Alterado de exit() para break para terminar o loop
+        else:
+            print("Opção inválida. Por favor, escolha uma opção disponível.")
+    
 
 if __name__ == "__main__":
     main()
