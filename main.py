@@ -9,7 +9,7 @@ from google.cloud import speech
 import io
 from moviepy.editor import AudioFileClip
 
-# Variável global para controlar o cancelamento
+
 cancel_download = False
 
 def open_folder(path):
@@ -18,7 +18,7 @@ def open_folder(path):
     elif os.name == 'posix':
         subprocess.Popen(['open', path] if sys.platform == 'darwin' else ['xdg-open', path])
 
-# Função para baixar um vídeo
+
 def download_video(video_url):
     global cancel_download
     cancel_download = False
@@ -54,7 +54,7 @@ def download_video(video_url):
     thread = threading.Thread(target=_download)
     thread.start()
 
-# Função para baixar um áudio
+
 def download_audio(video_url, output_path):
     global cancel_download
     cancel_download = False
@@ -63,11 +63,11 @@ def download_audio(video_url, output_path):
         try:
             yt = YouTube(video_url)
             audio_stream = yt.streams.filter(only_audio=True).first()
-            print(f'Iniciando download do áudio: {yt.title}')  # Depuração
+            print(f'Iniciando download do áudio: {yt.title}')  
             output_file = audio_stream.download(output_path=output_path)
             audio_path = os.path.splitext(output_file)[0] + ".mp3"
 
-            # Renomear o arquivo para ter extensão .mp3
+            
             os.rename(output_file, audio_path)
 
             if not cancel_download:
@@ -75,7 +75,7 @@ def download_audio(video_url, output_path):
                 open_folder(output_path)
         except Exception as e:
             if not cancel_download:
-                print(f'Ocorreu um erro ao baixar o áudio: {e}')  # Depuração
+                print(f'Ocorreu um erro ao baixar o áudio: {e}')  
                 messagebox.showerror("Erro", f"Ocorreu um erro ao baixar o áudio: {e}")
         finally:
             progress['value'] = 0
@@ -86,7 +86,7 @@ def download_audio(video_url, output_path):
     thread = threading.Thread(target=_download)
     thread.start()
 
-# Função de progresso
+
 def progress_callback(stream, chunk, bytes_remaining):
     if cancel_download:
         return
@@ -96,12 +96,12 @@ def progress_callback(stream, chunk, bytes_remaining):
     progress['value'] = percentage
     progress_label.config(text=f"{percentage:.2f}%")
 
-# Função para verificar se é uma URL válida
+
 def is_valid_url(url):
     regex = r'^(https?://)?(www\.)?(youtube\.com|youtu\.?be)/.+$'
     return re.match(regex, url) is not None
 
-# Função para baixar múltiplos vídeos
+
 def download_multiple_videos(urls, download_function):
     for url in urls:
         url = url.strip()
@@ -110,7 +110,7 @@ def download_multiple_videos(urls, download_function):
         else:
             messagebox.showwarning("URL Inválido", f"URL inválido: {url}")
 
-# Funções de download
+
 def on_download_video():
     video_url = entry_video.get()
     if is_valid_url(video_url):
@@ -120,7 +120,7 @@ def on_download_video():
     else:
         messagebox.showwarning("URL Inválido", "Por favor, insira um link válido do YouTube.")
 
-# Função de download de áudio
+
 def on_download_audio():
     video_url = entry_audio.get()
     if is_valid_url(video_url):
@@ -134,7 +134,7 @@ def on_download_audio():
     else:
         messagebox.showwarning("URL Inválido", "Por favor, insira um link válido do YouTube.")
 
-# Função de cancelamento
+
 def on_cancel_download():
     global cancel_download
     cancel_download = True
@@ -144,13 +144,13 @@ def on_cancel_download():
     cancel_button.pack_forget()
     cancel_button.config(command=None)
 
-# Função para baixar múltiplos arquivos
+
 def on_download_multiple_videos():
     video_urls = entry_multiple_videos.get("1.0", tk.END)
     urls_list = video_urls.split(',')
     download_multiple_videos(urls_list, download_video)
 
-# Função para baixar múltiplos arquivos
+
 def on_download_multiple_audios():
     video_urls = entry_multiple_audios.get("1.0", tk.END)
     urls_list = video_urls.split(',')
@@ -158,7 +158,7 @@ def on_download_multiple_audios():
 
 def download_audio_from_youtube(url, output_path):
     try:
-        # Baixar o áudio do YouTube usando pytubefix
+        
         yt = YouTube(url)
         audio_stream = yt.streams.filter(only_audio=True).first()
         
@@ -166,7 +166,7 @@ def download_audio_from_youtube(url, output_path):
             output_file = audio_stream.download(output_path=output_path)
             audio_path = os.path.splitext(output_file)[0] + ".mp3"
 
-            # Renomear o arquivo para ter extensão .mp3
+            
             os.rename(output_file, audio_path)
             return audio_path
         else:
@@ -177,39 +177,41 @@ def download_audio_from_youtube(url, output_path):
         return None
 
 def on_transcribe_audio():
-    # Obter a URL do YouTube a partir do campo de entrada
+    
     youtube_url = entry_transcribe.get().strip()
     print('URL do YouTube inserida:', youtube_url)
-
-    # Obter o diretório do usuário
+    
     user_home = os.path.expanduser("~")
     print('Diretório do usuário:', user_home)
 
-    # Criar o caminho de saída para salvar as transcrições
     output_path = os.path.join(user_home, "Transcriptions")
     print('Caminho de saída para transcrições:', output_path)
-
-    # Se o diretório de saída não existir, criar o diretório
+    
     if not os.path.exists(output_path):
         os.makedirs(output_path)
         print('Diretório "Transcriptions" criado.')
 
-    # Baixar e converter o vídeo do YouTube em áudio
+
     audio_path = download_audio_from_youtube(youtube_url, output_path)
     
     if audio_path and os.path.exists(audio_path):
         print('Arquivo de áudio encontrado. Iniciando transcrição...')
-        # Chamar a função de transcrição
+        
         transcribe_audio(audio_path)
     else:
         print('Arquivo de áudio não encontrado.')
         messagebox.showwarning("Arquivo Inválido", "Por favor, insira uma URL válida do YouTube.")
 
+
+
+
+
+
 def transcribe_audio(audio_path):
-    # Implementação da transcrição do áudio
+    
     print(f'Transcrevendo o áudio: {audio_path}')
 
-    # Use a biblioteca Google Speech para transcrição
+    
     client = speech.SpeechClient()
 
     with io.open(audio_path, "rb") as audio_file:
@@ -224,7 +226,7 @@ def transcribe_audio(audio_path):
 
     response = client.recognize(config=config, audio=audio)
 
-    # Criar um arquivo de texto para salvar a transcrição
+    
     transcription_path = os.path.splitext(audio_path)[0] + ".txt"
     with open(transcription_path, "w") as f:
         for result in response.results:
@@ -253,12 +255,12 @@ def toggle_dark_mode():
         for widget in [progress, progress_label, cancel_button]:
             widget.config(bg="white", fg="black")
 
-# Configuração da interface gráfica
+
 root = tk.Tk()
 root.title("YouTube Downloader e Transcriber")
 root.geometry("500x500")
 
-# Frames para diferentes funcionalidades
+
 frame_video = ttk.LabelFrame(root, text="Baixar Vídeo")
 frame_video.pack(padx=10, pady=10, fill="x")
 
