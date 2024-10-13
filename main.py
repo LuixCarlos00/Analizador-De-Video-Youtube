@@ -1,16 +1,16 @@
-from pytubefix import YouTube, Playlist
+from pytubefix import YouTube 
 import re
 import os
 import subprocess
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
-import whisper
 import sys
 from tkinter import filedialog
 import speech_recognition as sr
 from pydub import AudioSegment  
-
+import random
+import string
 
 
 
@@ -163,6 +163,12 @@ def download_audio(video_url):
 
 def triagem_transcricao():
     
+   
+    if not  messagebox.askokcancel("Atenção", "A transcrição pode demorar alguns instantes. E tambem pode ocorrer erros e perdas de dados. Tem certeza que deseja executar esta operação?"):
+        return
+    
+    
+    
     input_file = filedialog.askopenfilename(title="Escolha um arquivo de áudio", filetypes=[("Audio Files", "*.mp3;*.mp4;*.wav")])
     
     if not input_file:
@@ -171,13 +177,13 @@ def triagem_transcricao():
     
     user_home = os.path.expanduser("~")
     output_path = os.path.join(user_home, "Trascrições")
-    
-     
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     
     output_file = "converted.wav"
-    transcription_file = os.path.join(output_path, "transcricao.txt")   
+    tamanho = random.randint(20, 50)
+    string_aleatoria = gerar_string_aleatoria(tamanho)
+    transcription_file = os.path.join(output_path, "transcription-" + string_aleatoria + ".txt")   
 
     try:
         converte_mp3_para_wav(input_file, output_file)
@@ -201,6 +207,9 @@ def triagem_transcricao():
 
 
 
+def gerar_string_aleatoria(tamanho):
+    caracteres = string.ascii_letters + string.digits
+    return ''.join(random.choice(caracteres) for _ in range(tamanho))
 
 def converte_mp3_para_wav(input_file, output_file):
     audio = AudioSegment.from_file(input_file)
@@ -211,26 +220,23 @@ def traducao_Com_Google(file_path):
     recognizer = sr.Recognizer()
     audio = AudioSegment.from_file(file_path)
     
-    
-    part_length_ms = 10 * 1000  # 10 segundos
-    total_parts = len(audio) // part_length_ms + 1  # Total de partes
-    transcription = ""
+    tamanhoPorParte = 10 * 1000  # 10 segundos
+    totalPArte = len(audio) // tamanhoPorParte + 1  # Total de partes
+    texto = ""
 
-    for i in range(total_parts):
-        start_time = i * part_length_ms
-        end_time = min((i + 1) * part_length_ms, len(audio))
-        audio_part = audio[start_time:end_time]
-        print(f"Parte {i + 1} de {total_parts}")
-        
-        audio_part.export("temp_part.wav", format="wav")
+    for i in range(totalPArte):
+        start = i * tamanhoPorParte
+        fim = min((i + 1) * tamanhoPorParte, len(audio))
+        audioParte = audio[start:fim]
+         
+        audioParte.export("temp_part.wav", format="wav")
         
         with sr.AudioFile("temp_part.wav") as source:
-            audio_data = recognizer.record(source)
+            dadoAudio = recognizer.record(source)
         
         try:
-             
-            text = recognizer.recognize_google(audio_data, language='pt-BR')
-            transcription += text + " "
+            text = recognizer.recognize_google(dadoAudio, language='pt-BR')
+            texto += text + " "
             print(f"Parte {i + 1}: {text}")
         except sr.UnknownValueError:
             print(f"Parte {i + 1} não pôde ser entendida.")
@@ -238,10 +244,10 @@ def traducao_Com_Google(file_path):
             print(f"Erro no serviço de reconhecimento de fala; {e}")
             return None
         
-         
-        barra_ProgressoTrascricao(total_parts, i + 1)
+        barra_ProgressoTrascricao(totalPArte, i + 2)
     
-    return transcription.strip()
+    return texto.strip()
+
     
     
     
