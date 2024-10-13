@@ -94,7 +94,7 @@ python main.py
 
 ```
 ### Veja mais:
- - [link](http://localhost:4200/#/)
+ -  [link](https://luizcarlos-cv.netlify.app/) 
 
 ### Sinta se a vontade para melhorar e acrecentar funionalidades ao projeto. :rocket:
   
