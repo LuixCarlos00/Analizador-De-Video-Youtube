@@ -1,0 +1,6 @@
+pytubefix>=8.0
+SpeechRecognition>=3.10
+pydub>=0.25.1
+# Python 3.13 removeu os módulos audioop e aifc, usados por pydub e SpeechRecognition.
+audioop-lts; python_version >= "3.13"
+standard-aifc; python_version >= "3.13"
