@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+myenv/
+.pytest_cache/
+
+# Artefatos do PyInstaller / instalador (gerados por instalar.ps1)
+build/
+dist/
+
+# Estado local de ferramentas
+.omc/
+
+# IDE
+.idea/
+.vscode/
