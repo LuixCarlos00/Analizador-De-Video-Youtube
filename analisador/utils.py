@@ -76,23 +76,106 @@ def garantir_pasta(caminho):
     return caminho
 
 
-def nome_arquivo_transcricao(arquivo_origem, agora=None):
-    """Gera um nome legível para o arquivo de transcrição.
+# Títulos do YouTube podem ser enormes; o Windows limita o caminho completo a ~260 caracteres.
+_TAMANHO_MAXIMO_NOME = 80
 
-    Usa o nome do áudio de origem + data/hora, em vez de uma string aleatória,
-    para o usuário saber de qual áudio veio cada transcrição.
+
+def nome_arquivo_transcricao(nome_base, agora=None):
+    """Gera um nome legível e seguro para o arquivo de transcrição.
+
+    Usa o nome de origem (arquivo de áudio ou título do vídeo) + data/hora, para o
+    usuário saber de onde veio cada transcrição sem um arquivo sobrescrever o outro.
 
     Args:
-        arquivo_origem (str): caminho do arquivo de áudio transcrito.
+        nome_base (str): nome do áudio (sem extensão) ou título do vídeo.
         agora (datetime | None): data/hora usada no nome (injetável para testes).
 
     Returns:
         str: nome do arquivo, ex.: "aula-01_2026-11-18_14-30-00.txt".
     """
     agora = agora or datetime.now()
-    base = os.path.splitext(os.path.basename(arquivo_origem))[0] or "transcricao"
-    base = re.sub(r'[\\/:*?"<>|]+', "_", base).strip() or "transcricao"
+    base = re.sub(r'[\\/:*?"<>|\r\n\t]+', "_", nome_base or "")
+    base = base.strip(" .")[:_TAMANHO_MAXIMO_NOME].strip(" .") or "transcricao"
     return f"{base}_{agora:%Y-%m-%d_%H-%M-%S}.txt"
+
+
+def caminho_sem_conflito(pasta, nome_arquivo):
+    """Retorna um caminho que ainda não existe, acrescentando " (2)", " (3)"... se preciso.
+
+    Evita que duas transcrições com o mesmo nome no mesmo segundo se sobrescrevam.
+
+    Args:
+        pasta (str): pasta de destino.
+        nome_arquivo (str): nome desejado, com extensão.
+
+    Returns:
+        str: caminho livre.
+    """
+    base, extensao = os.path.splitext(nome_arquivo)
+    caminho, contador = os.path.join(pasta, nome_arquivo), 2
+    while os.path.exists(caminho):
+        caminho = os.path.join(pasta, f"{base} ({contador}){extensao}")
+        contador += 1
+    return caminho
+
+
+def nome_base_do_arquivo(caminho):
+    """Retorna o nome do arquivo sem pasta e sem extensão (ex.: "/x/aula 01.mp3" -> "aula 01").
+
+    Args:
+        caminho (str): caminho do arquivo.
+
+    Returns:
+        str: nome sem extensão.
+    """
+    return os.path.splitext(os.path.basename(caminho))[0]
+
+
+_ERRO_WINDOWS_BLOQUEIO_POLITICA = 4551  # "Uma política de controle de aplicativo bloqueou este arquivo"
+
+# Erros da pytubefix (comparados pelo nome da classe, para não depender da biblioteca aqui).
+# A ordem importa: classes mais específicas primeiro (várias herdam de VideoUnavailable).
+_ERROS_YOUTUBE = (
+    ("VideoPrivate", "Este vídeo é privado."),
+    ("MembersOnly", "Este vídeo é exclusivo para membros do canal."),
+    ("AgeRestricted", "Este vídeo tem restrição de idade e exige login."),
+    ("AgeCheckRequired", "Este vídeo tem restrição de idade e exige login."),
+    ("LoginRequired", "Este vídeo exige login no YouTube."),
+    ("VideoRegionBlocked", "Este vídeo não está disponível no seu país."),
+    ("VideoBlockedByCopyright", "Este vídeo foi bloqueado por direitos autorais."),
+    ("VideoRemoved", "Este vídeo foi removido."),
+    ("AccountTerminated", "A conta que publicou este vídeo foi encerrada."),
+    ("LiveStream", "Transmissões ao vivo não podem ser baixadas enquanto estão no ar."),
+    ("BotDetection", "O YouTube bloqueou temporariamente o acesso (detecção de robô). "
+                     "Espere alguns minutos e tente de novo."),
+    ("PoTokenRequired", "O YouTube bloqueou temporariamente o acesso. Espere alguns minutos e tente de novo."),
+    ("VideoUnavailable", "Este vídeo não existe ou não está disponível. Confira o link."),
+    ("RegexMatchError", "Não foi possível ler este link. Confira se ele está completo."),
+)
+
+
+def mensagem_de_erro_amigavel(erro):
+    """Traduz erros técnicos conhecidos em uma mensagem que um usuário leigo entende.
+
+    Args:
+        erro (BaseException): exceção capturada.
+
+    Returns:
+        str: mensagem para exibir ao usuário.
+    """
+    texto = str(erro)
+    nomes_das_classes = [classe.__name__ for classe in type(erro).__mro__]
+    for trecho_do_nome, mensagem in _ERROS_YOUTUBE:
+        if any(trecho_do_nome in nome for nome in nomes_das_classes):
+            return mensagem
+    if getattr(erro, "winerror", None) == _ERRO_WINDOWS_BLOQUEIO_POLITICA or re.search(r"\bWinError 4551\b", texto):
+        return ("O Windows bloqueou um programa auxiliar (ffmpeg ou node) por uma política de segurança "
+                "(Controle Inteligente de Aplicativos ou regra da empresa). "
+                "Veja a seção \"Problemas comuns no Windows\" do README.\n\n"
+                f"Detalhe técnico: {texto}")
+    if isinstance(erro, FileNotFoundError) and ("ffmpeg" in texto.lower() or "ffprobe" in texto.lower()):
+        return f"O ffmpeg não foi encontrado. Rode o instalador de novo.\n\nDetalhe técnico: {texto}"
+    return texto
 
 
 def abrir_pasta(caminho):

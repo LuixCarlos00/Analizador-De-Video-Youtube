@@ -7,7 +7,9 @@ from analisador.utils import (
     e_url_youtube_valida,
     extrair_urls,
     garantir_pasta,
+    mensagem_de_erro_amigavel,
     nome_arquivo_transcricao,
+    nome_base_do_arquivo,
 )
 
 
@@ -58,14 +60,70 @@ def test_calcular_percentual(processado, total, esperado):
 
 def test_nome_arquivo_transcricao_usa_nome_de_origem_e_data():
     agora = datetime(2026, 11, 18, 14, 30, 0)
-    assert nome_arquivo_transcricao("/x/aula 01.mp3", agora) == "aula 01_2026-11-18_14-30-00.txt"
+    assert nome_arquivo_transcricao("aula 01", agora) == "aula 01_2026-11-18_14-30-00.txt"
+
+
+def test_nome_arquivo_transcricao_preserva_ponto_no_titulo_do_video():
+    agora = datetime(2026, 1, 1)
+    assert nome_arquivo_transcricao("Aula 1. Introdução", agora) == "Aula 1. Introdução_2026-01-01_00-00-00.txt"
 
 
 def test_nome_arquivo_transcricao_remove_caracteres_invalidos_e_trata_vazio():
     agora = datetime(2026, 1, 1)
-    assert nome_arquivo_transcricao('a:b*c?.wav', agora) == "a_b_c__2026-01-01_00-00-00.txt"
+    assert nome_arquivo_transcricao("a:b*c?", agora) == "a_b_c__2026-01-01_00-00-00.txt"
     assert nome_arquivo_transcricao("", agora) == "transcricao_2026-01-01_00-00-00.txt"
-    assert nome_arquivo_transcricao("/pasta/***.mp3", agora) == "__2026-01-01_00-00-00.txt"
+    assert nome_arquivo_transcricao(None, agora) == "transcricao_2026-01-01_00-00-00.txt"
+    assert nome_arquivo_transcricao("Quem é? / Parte 2", agora) == "Quem é_ _ Parte 2_2026-01-01_00-00-00.txt"
+
+
+def test_nome_arquivo_transcricao_limita_titulos_longos():
+    nome = nome_arquivo_transcricao("x" * 300, datetime(2026, 1, 1))
+    assert nome == "x" * 80 + "_2026-01-01_00-00-00.txt"
+
+
+def test_nome_base_do_arquivo():
+    assert nome_base_do_arquivo("/x/aula 01.mp3") == "aula 01"
+    assert nome_base_do_arquivo("C:/Users/a/minha.aula.m4a") == "minha.aula"
+
+
+def test_mensagem_amigavel_bloqueio_de_politica_do_windows():
+    erro = OSError(22, "Uma política de controle de aplicativo bloqueou este arquivo")
+    erro.winerror = 4551  # atributo que o Windows preenche em OSError
+    mensagem = mensagem_de_erro_amigavel(erro)
+    assert "bloqueou um programa auxiliar" in mensagem
+    assert "Detalhe técnico" in mensagem
+
+
+def test_mensagem_amigavel_ffmpeg_ausente():
+    mensagem = mensagem_de_erro_amigavel(FileNotFoundError(2, "No such file", "ffprobe"))
+    assert mensagem.startswith("O ffmpeg não foi encontrado")
+
+
+class VideoUnavailable(Exception):
+    """Imita a hierarquia de exceções da pytubefix (comparada pelo nome da classe)."""
+
+
+class VideoPrivate(VideoUnavailable):
+    pass
+
+
+class VideoRemovedByUploader(VideoUnavailable):
+    pass
+
+
+@pytest.mark.parametrize("erro,esperado", [
+    (VideoUnavailable("xxxxxxxxxxx is unavailable"), "não existe ou não está disponível"),
+    (VideoPrivate("abc is private"), "é privado"),  # específica vence a classe-mãe
+    (VideoRemovedByUploader("abc"), "foi removido"),
+])
+def test_mensagem_amigavel_traduz_erros_do_youtube(erro, esperado):
+    assert esperado in mensagem_de_erro_amigavel(erro)
+
+
+def test_mensagem_amigavel_outros_erros_mantem_texto_original():
+    assert mensagem_de_erro_amigavel(RuntimeError("vídeo privado")) == "vídeo privado"
+    # FileNotFoundError de outro arquivo não deve ser confundido com ffmpeg ausente
+    assert mensagem_de_erro_amigavel(FileNotFoundError("audio.mp3")) == "audio.mp3"
 
 
 def test_garantir_pasta_cria_e_e_idempotente(tmp_path):

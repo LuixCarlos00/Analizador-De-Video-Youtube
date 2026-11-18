@@ -1,13 +1,76 @@
 """Configurações centrais (pastas de saída e parâmetros da transcrição)."""
 
 import os
+import re
 import sys
 
 PASTA_USUARIO = os.path.expanduser("~")
 
-PASTA_VIDEOS = os.path.join(PASTA_USUARIO, "Videos_Downloads")
-PASTA_AUDIOS = os.path.join(PASTA_USUARIO, "Audios_Downloads")
-PASTA_TRANSCRICOES = os.path.join(PASTA_USUARIO, "Transcricoes")
+# GUID da pasta "Downloads" no Windows (FOLDERID_Downloads).
+_FOLDERID_DOWNLOADS = "{374DE290-123F-4565-9164-39C4925E467B}"
+
+
+def _pasta_downloads_windows():
+    """Pergunta ao Windows onde fica a pasta Downloads (ela pode ter sido movida, ex.: OneDrive)."""
+    import ctypes
+    from ctypes import wintypes
+
+    class GUID(ctypes.Structure):
+        _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD),
+                    ("Data3", wintypes.WORD), ("Data4", ctypes.c_ubyte * 8)]
+
+    guid = GUID()
+    ctypes.oledll.ole32.CLSIDFromString(_FOLDERID_DOWNLOADS, ctypes.byref(guid))
+    caminho = ctypes.c_wchar_p()
+    ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(caminho))
+    try:
+        return caminho.value
+    finally:
+        ctypes.windll.ole32.CoTaskMemFree(caminho)
+
+
+def _pasta_downloads_xdg(home):
+    """Lê a pasta Downloads configurada no Linux (~/.config/user-dirs.dirs), que pode ter outro nome."""
+    arquivo = os.path.join(home, ".config", "user-dirs.dirs")
+    try:
+        with open(arquivo, encoding="utf-8") as f:
+            for linha in f:
+                achado = re.match(r'\s*XDG_DOWNLOAD_DIR\s*=\s*"(.+)"', linha)
+                if achado:
+                    pasta = os.path.normpath(achado.group(1).replace("$HOME", home))
+                    # "$HOME/" significa que o usuário desativou a pasta Downloads: usa o padrão.
+                    return None if pasta == os.path.normpath(home) else pasta
+    except OSError:
+        pass
+    return None
+
+
+def pasta_downloads(home=None):
+    """Retorna a pasta Downloads do usuário no sistema operacional atual.
+
+    Args:
+        home (str | None): pasta do usuário (injetável para testes).
+
+    Returns:
+        str: caminho da pasta Downloads; cai em ``~/Downloads`` se não conseguir descobrir.
+    """
+    home = home or PASTA_USUARIO
+    descoberta = None
+    try:
+        if os.name == "nt":
+            descoberta = _pasta_downloads_windows()
+        elif sys.platform != "darwin":
+            descoberta = _pasta_downloads_xdg(home)
+    except Exception:  # noqa: BLE001 - na dúvida, usa o caminho padrão
+        descoberta = None
+    return descoberta or os.path.join(home, "Downloads")
+
+
+# Tudo fica organizado numa pasta própria dentro de Downloads.
+PASTA_BASE = os.path.join(pasta_downloads(), "Analisador YouTube")
+PASTA_VIDEOS = os.path.join(PASTA_BASE, "Videos")
+PASTA_AUDIOS = os.path.join(PASTA_BASE, "Audios")
+PASTA_TRANSCRICOES = os.path.join(PASTA_BASE, "Transcricoes")
 
 IDIOMA_TRANSCRICAO = "pt-BR"
 
@@ -56,12 +119,14 @@ def ocultar_janelas_de_console():
     O app é empacotado sem console (janela gráfica). Programas de console chamados
     por ele (o Node usado pela pytubefix e o ffmpeg usado pelo pydub) abririam uma
     janela preta a cada execução. Aqui o ``subprocess.Popen`` passa a usar
-    CREATE_NO_WINDOW por padrão. Não faz nada fora do Windows ou fora do .exe.
+    CREATE_NO_WINDOW por padrão. Só age no Windows, quando o app roda sem console
+    (pelo .exe ou pelo ``pythonw.exe``, que é como o atalho do instalador abre o app).
 
     Returns:
         bool: True se o ajuste foi aplicado.
     """
-    if os.name != "nt" or not getattr(sys, "frozen", False):
+    sem_console = getattr(sys, "frozen", False) or os.path.basename(sys.executable).lower() == "pythonw.exe"
+    if os.name != "nt" or not sem_console:
         return False
 
     import subprocess
