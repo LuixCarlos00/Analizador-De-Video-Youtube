@@ -5,11 +5,16 @@
 .DESCRIPTION
     1. Baixa o codigo do GitHub (se o script foi rodado fora da pasta do projeto).
     2. Instala o Python (se faltar) - via winget ou instalador oficial do python.org.
-    3. Cria um ambiente virtual isolado e instala as dependencias.
-    4. Gera o executavel com o PyInstaller.
-    5. Instala em %LOCALAPPDATA%\Programs\AnalisadorYoutube, baixa o ffmpeg para dentro dele,
-       cria atalhos na Area de Trabalho e no Menu Iniciar e registra em "Aplicativos instalados".
-    6. Gera dist\AnalisadorYoutube-windows.zip (versao portatil para compartilhar).
+    3. Copia o app para %LOCALAPPDATA%\Programs\AnalisadorYoutube, cria nele um ambiente
+       Python isolado com as dependencias e baixa o ffmpeg para dentro dele.
+    4. Cria atalhos na Area de Trabalho e no Menu Iniciar e registra em "Aplicativos instalados".
+
+    O atalho abre o app pelo pythonw.exe (Python oficial, assinado digitalmente) em vez de um
+    .exe gerado na hora: o Controle Inteligente de Aplicativos do Windows 11 e politicas de
+    empresa (AppLocker/WDAC) bloqueiam executaveis sem assinatura nem reputacao.
+
+    Com -GerarPortatil (uso do desenvolvedor), tambem gera dist\AnalisadorYoutube-windows.zip,
+    uma versao .exe portatil feita com PyInstaller.
 
     Nao precisa de administrador: tudo e instalado na pasta do usuario.
 
@@ -21,8 +26,11 @@
 
     # Desinstalar:
     powershell -ExecutionPolicy Bypass -File instalar.ps1 -Desinstalar
+
+    # Gerar tambem o .exe portatil (.zip) para distribuir:
+    powershell -ExecutionPolicy Bypass -File instalar.ps1 -GerarPortatil
 #>
-param([switch]$Desinstalar)
+param([switch]$Desinstalar, [switch]$GerarPortatil)
 
 # Via "irm | iex" o script roda no escopo da janela do usuario: guardamos as preferencias
 # para restaura-las no final e nao alterar o comportamento do PowerShell dele.
@@ -68,9 +76,18 @@ function Atualizar-Path {
     $env:Path = $atuais -join ';'
 }
 
+# Fecha o app se estiver aberto (o pythonw.exe da pasta de instalacao, ou o .exe de versoes antigas),
+# para os arquivos poderem ser substituidos.
 function Parar-App {
-    Get-Process -Name $NomeApp -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith($PastaInstalacao, [StringComparison]::OrdinalIgnoreCase) } |
+        Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 500
+}
+
+# Mensagem clara quando o Windows bloqueia um programa (Smart App Control / AppLocker / WDAC).
+function E-BloqueioDePolitica($erro) {
+    return "$erro" -match 'pol.tica de controle de aplicativo|Application Control policy|4551'
 }
 
 # ------------------------------------------------------------------ desinstalar
@@ -107,7 +124,7 @@ function Obter-CodigoFonte {
 }
 
 # ------------------------------------------------------------------- python
-# Retorna @{Exe=...; Args=@(...)} de um Python >= 3.9, ou $null.
+# Retorna @{Exe=...; Args=@(...)} de um Python >= 3.10, ou $null.
 function Encontrar-Python {
     $candidatos = @(
         @{ Exe = 'py';     Args = @('-3.12') },
@@ -119,7 +136,7 @@ function Encontrar-Python {
         $argumentos = @($c.Args) + '--version'
         try { $versao = & $c.Exe @argumentos 2>&1 } catch { continue }
         # "python" pode ser o atalho da Microsoft Store, que nao imprime versao: o regex descarta.
-        if ("$versao" -match 'Python 3\.(\d+)' -and [int]$Matches[1] -ge 9) { return $c }
+        if ("$versao" -match 'Python 3\.(\d+)' -and [int]$Matches[1] -ge 10) { return $c }
     }
     return $null
 }
@@ -168,12 +185,13 @@ function Instalar-Ffmpeg([string]$destino) {
 }
 
 # ------------------------------------------------------------------ atalhos
-function Criar-Atalhos([string]$exe) {
+function Criar-Atalhos([string]$exe, [string]$argumentos) {
     $shell = New-Object -ComObject WScript.Shell
     foreach ($caminho in $Atalhos) {
         $atalho = $shell.CreateShortcut($caminho)
         $atalho.TargetPath = $exe
-        $atalho.WorkingDirectory = Split-Path $exe
+        $atalho.Arguments = $argumentos
+        $atalho.WorkingDirectory = $PastaInstalacao
         $atalho.Description = 'Baixar videos/audios do YouTube e transcrever audio'
         $atalho.Save()
     }
@@ -187,7 +205,8 @@ function Registrar-Desinstalador([string]$exe) {
     function Q([string]$s) { "'" + $s.Replace("'", "''") + "'" }
     $linhas = @(
         "`$ErrorActionPreference = 'SilentlyContinue'",
-        "Get-Process -Name $(Q $NomeApp) | Stop-Process -Force",
+        "`$pasta = $(Q $PastaInstalacao)",
+        'Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($pasta, [StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force',
         'Start-Sleep -Milliseconds 500'
     )
     $linhas += $Atalhos | ForEach-Object { "Remove-Item -LiteralPath $(Q $_) -Force" }
@@ -228,53 +247,74 @@ try {
     }
     Ok "Usando: $($python.Exe) $($python.Args -join ' ')"
 
-    Etapa 'Criando ambiente isolado e instalando dependencias (pode levar alguns minutos)'
-    $venv = Join-Path $origem '.venv'
-    if (-not (Test-Path (Join-Path $venv 'Scripts\python.exe'))) {
-        Executar $python.Exe (@($python.Args) + @('-m', 'venv', $venv))
-    }
-    $venvPython = Join-Path $venv 'Scripts\python.exe'
-    Executar $venvPython @('-m', 'pip', 'install', '--upgrade', 'pip', '--quiet', '--disable-pip-version-check')
-    Executar $venvPython @('-m', 'pip', 'install', '-r', (Join-Path $origem 'requirements.txt'), 'pyinstaller', '--quiet', '--disable-pip-version-check')
-    Ok 'Dependencias instaladas'
-
-    Etapa 'Gerando o executavel'
-    Push-Location $origem
-    try { Executar $venvPython @('-m', 'PyInstaller', 'main.spec', '--noconfirm', '--clean', '--log-level', 'WARN') }
-    finally { Pop-Location }
-    $pastaGerada = Join-Path $origem "dist\$NomeApp"
-    Ok "Executavel gerado em $pastaGerada"
-
     Etapa "Instalando em $PastaInstalacao"
     Parar-App
     if (Test-Path $PastaInstalacao) {
-        # Mantem o ffmpeg ja baixado em reinstalacoes (evita baixar ~100 MB de novo).
-        Get-ChildItem $PastaInstalacao | Where-Object { $_.Name -ne 'ffmpeg' } | Remove-Item -Recurse -Force
+        # Reinstalacao: mantem o ffmpeg (~100 MB) e o ambiente Python ja criados; o resto e substituido
+        # (inclusive o AnalisadorYoutube.exe e a pasta _internal de versoes antigas).
+        Get-ChildItem $PastaInstalacao -Force | Where-Object { $_.Name -notin @('ffmpeg', '.venv') } |
+            Remove-Item -Recurse -Force
     } else {
         New-Item -ItemType Directory -Path $PastaInstalacao | Out-Null
     }
-    Copy-Item (Join-Path $pastaGerada '*') $PastaInstalacao -Recurse -Force
+    foreach ($item in @('analisador', 'main.py', 'requirements.txt')) {
+        Copy-Item (Join-Path $origem $item) $PastaInstalacao -Recurse -Force
+    }
+    Get-ChildItem $PastaInstalacao -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
+
+    Etapa 'Criando ambiente isolado e instalando dependencias (pode levar alguns minutos)'
+    $venv = Join-Path $PastaInstalacao '.venv'
+    $venvPython = Join-Path $venv 'Scripts\python.exe'
+    $venvPythonw = Join-Path $venv 'Scripts\pythonw.exe'
+    if (-not (Test-Path $venvPythonw)) {
+        Remove-Item $venv -Recurse -Force -ErrorAction SilentlyContinue
+        Executar $python.Exe (@($python.Args) + @('-m', 'venv', $venv))
+    }
+    Executar $venvPython @('-m', 'pip', 'install', '--upgrade', 'pip', '--quiet', '--disable-pip-version-check')
+    # --upgrade: reinstalar tambem atualiza a pytubefix, que precisa acompanhar as mudancas do YouTube.
+    Executar $venvPython @('-m', 'pip', 'install', '--upgrade', '-r', (Join-Path $PastaInstalacao 'requirements.txt'),
+                           '--quiet', '--disable-pip-version-check')
+    Ok 'Dependencias instaladas'
+
     Instalar-Ffmpeg $PastaInstalacao
 
-    $exeInstalado = Join-Path $PastaInstalacao "$NomeApp.exe"
-    Criar-Atalhos $exeInstalado
-    Registrar-Desinstalador $exeInstalado
+    $mainPy = Join-Path $PastaInstalacao 'main.py'
+    Criar-Atalhos $venvPythonw "`"$mainPy`""
+    Registrar-Desinstalador $venvPythonw
 
-    if ($PSScriptRoot) {
-        # So quando roda a partir do projeto (desenvolvedor): gera o .zip portatil para distribuir.
-        Etapa 'Gerando versao portatil (.zip) para compartilhar'
+    if ($GerarPortatil) {
+        Etapa 'Gerando versao portatil (.exe em .zip) com PyInstaller'
+        Executar $venvPython @('-m', 'pip', 'install', 'pyinstaller', '--quiet', '--disable-pip-version-check')
+        Push-Location $origem
+        try { Executar $venvPython @('-m', 'PyInstaller', 'main.spec', '--noconfirm', '--clean', '--log-level', 'WARN') }
+        finally { Pop-Location }
+        $pastaGerada = Join-Path $origem "dist\$NomeApp"
+        Copy-Item (Join-Path $PastaInstalacao 'ffmpeg') $pastaGerada -Recurse -Force
         $zipFinal = Join-Path $origem "dist\$NomeApp-windows.zip"
-        $itens = Get-ChildItem $PastaInstalacao | Where-Object { $_.Name -ne 'desinstalar.ps1' }
-        Compress-Archive -Path $itens.FullName -DestinationPath $zipFinal -Force
+        Compress-Archive -Path (Join-Path $pastaGerada '*') -DestinationPath $zipFinal -Force
         Ok $zipFinal
+        Ok 'Atencao: o .exe nao e assinado; computadores com Controle Inteligente de Aplicativos podem bloquea-lo.'
     }
 
     Write-Host "`nPronto! Abra pelo atalho '$NomeAtalho' na Area de Trabalho." -ForegroundColor Green
-    Start-Process $exeInstalado
+    try {
+        Start-Process $venvPythonw -ArgumentList "`"$mainPy`"" -WorkingDirectory $PastaInstalacao
+    }
+    catch {
+        # A instalacao terminou; so a abertura automatica falhou. Nao tratar como erro de instalacao.
+        Write-Host "`nNao consegui abrir o programa automaticamente: $($_.Exception.Message)" -ForegroundColor Yellow
+        if (E-BloqueioDePolitica $_) {
+            Write-Host 'O Windows bloqueou o programa por uma politica de seguranca. Veja "Problemas comuns" no README.' -ForegroundColor Yellow
+        }
+    }
 }
 catch {
     Write-Host "`nERRO: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host 'Se o problema continuar, envie esta mensagem para o desenvolvedor.' -ForegroundColor Red
+    if (E-BloqueioDePolitica $_) {
+        Write-Host 'O Windows bloqueou um programa por uma politica de seguranca (Controle Inteligente de Aplicativos ou regra da empresa). Veja "Problemas comuns" no README.' -ForegroundColor Red
+    } else {
+        Write-Host 'Se o problema continuar, envie esta mensagem para o desenvolvedor.' -ForegroundColor Red
+    }
     if ($PSScriptRoot) { exit 1 }   # via "irm | iex" nao fecha o terminal do usuario
 }
 finally {
