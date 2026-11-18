@@ -1,125 +1,160 @@
-## Projeto de Download e Transcrição de Vídeos e Áudios do YouTube
+# Analisador de Vídeo do YouTube
 
-Este projeto é uma aplicação GUI desenvolvida em Python que permite baixar vídeos e áudios do YouTube e realizar a transcrição de áudios em texto.
-A aplicação utiliza diversas bibliotecas como pytube, tkinter , speech_recognition, e pydub para oferecer uma interface amigável e funcionalidades robustas.
-Abaixo estão os principais componentes e funcionalidades do projeto.
-
-## Ferramentas Utilizadas
+Aplicativo com interface gráfica para **baixar vídeos e áudios do YouTube** (um ou vários de uma vez) e **transcrever arquivos de áudio em texto**.
 
 [![My Skills](https://skillicons.dev/icons?i=py,vscode)](https://skillicons.dev)
 
-# Linguagem de Programação: Python
+---
 
-## Bibliotecas Utilizadas
-Para executar este projeto, você precisará instalar as seguintes bibliotecas:
+## Instalação (para quem não é desenvolvedor)
 
-- pytubefix : Esta biblioteca parece ser uma modificação do pytube, que é usado para baixar vídeos do YouTube.
-- tkinter: Para a interface gráfica.
-- speech_recognition: Para transcrição de áudio.
-- pydub: Para manipulação de arquivos de áudio.
- 
- 
-  
-## Descrição do Projeto
-Este projeto é uma aplicação GUI desenvolvida em Python que permite baixar vídeos e áudios do YouTube e realizar a transcrição de áudios em texto. 
-A aplicação utiliza diversas bibliotecas como pytube, tkinter,   speech_recognition, e pydub para oferecer uma interface amigável e funcionalidades robustas. 
-Abaixo estão os principais componentes e funcionalidades do projeto.
+Um comando só: ele instala tudo o que falta (Python, ffmpeg, bibliotecas), cria o atalho na Área de Trabalho e já abre o programa.
+
+### Windows (10 ou 11)
+
+**Requisitos:** internet e uns 15 minutos na primeira vez. **Não** precisa ser administrador nem ter nada instalado antes.
+
+#### Opção 1 — Um comando só (recomendado)
+
+1. Aperte a tecla **Windows**, digite **`PowerShell`** e abra o **Windows PowerShell** (a janela azul).
+2. Copie o comando abaixo, cole na janela (clique com o botão direito do mouse) e aperte **Enter**:
+
+   ```powershell
+   irm https://raw.githubusercontent.com/LuixCarlos00/Analizador-De-Video-Youtube/main/instalar.ps1 | iex
+   ```
+
+3. Espere. O texto vai mostrando cada etapa (`==> ...`). **Não feche a janela** até aparecer:
+
+   ```
+   Pronto! Abra pelo atalho 'Analisador YouTube' na Area de Trabalho.
+   ```
+
+   O programa abre sozinho no final.
+
+#### Opção 2 — Baixando o projeto
+
+1. Nesta página do GitHub, clique em **Code → Download ZIP**.
+2. Clique com o botão direito no `.zip` baixado → **Extrair tudo...** → **Extrair**.
+3. Dentro da pasta extraída, dê **duplo clique em `instalar.bat`**.
+4. Se aparecer a tela azul **"O Windows protegeu o computador"**, clique em **Mais informações → Executar assim mesmo**. Isso acontece com qualquer script baixado da internet que não tem assinatura digital.
+5. Espere até aparecer `Pronto!` e aperte qualquer tecla para fechar.
+
+Nessa opção, o instalador também gera `dist\AnalisadorYoutube-windows.zip`. É uma **versão portátil** que você pode mandar para outra pessoa: ela só precisa extrair e abrir o `AnalisadorYoutube.exe`, sem instalar nada.
+
+#### O que o instalador faz
+
+| Etapa | Detalhe |
+|---|---|
+| Python | Instala o Python 3.12 só para o seu usuário, se ainda não tiver (via `winget` ou pelo site oficial python.org) |
+| Bibliotecas | Cria um ambiente isolado e instala `pytubefix`, `SpeechRecognition` e `pydub` |
+| Programa | Gera o `AnalisadorYoutube.exe` e instala em `%LOCALAPPDATA%\Programs\AnalisadorYoutube` |
+| ffmpeg | Baixa o ffmpeg (necessário para a transcrição) para dentro da pasta do programa |
+| Atalhos | Cria **"Analisador YouTube"** na Área de Trabalho e no Menu Iniciar |
+| Desinstalação | Registra em **Configurações → Aplicativos → Aplicativos instalados** |
+
+Para **atualizar** para uma versão nova, é só rodar o instalador de novo. Ele substitui o programa e mantém o ffmpeg já baixado.
+
+#### Problemas comuns no Windows
+
+| Mensagem | Solução |
+|---|---|
+| `a execução de scripts foi desabilitada neste sistema` | Use a **Opção 2** (`instalar.bat`), que já libera a execução só para o instalador. |
+| `Nao foi possivel instalar o Python` | Instale o Python manualmente em [python.org/downloads](https://www.python.org/downloads/) marcando **"Add python.exe to PATH"** e rode o instalador de novo. |
+| Antivírus bloqueou o `AnalisadorYoutube.exe` | Executáveis gerados pelo PyInstaller às vezes são confundidos com vírus (falso positivo). Libere o arquivo no antivírus. |
+| Erro ao baixar (`HTTP 403`, `bot`, etc.) | O YouTube muda com frequência. Rode o instalador de novo para atualizar a biblioteca `pytubefix`. |
+| Qualquer outro `ERRO:` em vermelho | Tire um print da janela e envie para o desenvolvedor. |
+
+### Linux / macOS
+
+Abra o terminal e cole:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/LuixCarlos00/Analizador-De-Video-Youtube/main/instalar.sh | bash
+```
+
+Depois abra **"Analisador YouTube"** pelo menu de aplicativos ou pela Área de Trabalho (no terminal: `analisador-youtube`).
+Pode pedir sua senha para instalar `python3-tk` e `ffmpeg`. No macOS é preciso ter o [Homebrew](https://brew.sh).
+
+### Desinstalar
+
+- **Windows:** Configurações → Aplicativos instalados → *Analisador YouTube* → Desinstalar
+- **Linux/macOS:** `bash instalar.sh --desinstalar`
+
+Seus downloads e transcrições **não** são apagados.
+
+---
 
 ## Funcionalidades
 
-* Download de Vídeos do YouTube
-  * Usuários podem inserir um link de vídeo do YouTube e baixar o vídeo em alta resolução.
-  * Os vídeos são salvos na pasta "Videos_Downloads" no diretório do usuário.
-  
-* Download de Áudios do YouTube
-   * Permite baixar apenas o áudio dos vídeos do YouTube.
-   * Os áudios são salvos na pasta "Audios_Downloads" no diretório do usuário.
+| Função | Onde salva |
+|---|---|
+| Baixar vídeo (maior resolução com áudio embutido, até 720p) | `~/Videos_Downloads` |
+| Baixar só o áudio (formato `.m4a`) | `~/Audios_Downloads` |
+| Baixar vários vídeos/áudios (um link por linha ou separados por vírgula) | mesmas pastas |
+| Transcrever áudio (`mp3`, `mp4`, `m4a`, `wav`, `ogg`, `webm`) para texto em português | `~/Transcricoes` |
 
+- Botão **Cancelar** interrompe de verdade o download/transcrição e apaga o arquivo incompleto.
+- Em lotes, um link com problema não interrompe os outros; no final aparece o resumo do que deu certo e do que falhou.
+- A janela não trava durante downloads e transcrições.
+- Botão para alternar tema (azul/escuro).
 
-* Download de Múltiplos Vídeos e Áudios
-  * Suporte para baixar múltiplos vídeos e áudios a partir de uma lista de URLs separadas por vírgulas.
+> A transcrição usa o serviço gratuito de reconhecimento de fala do Google, então precisa de internet. Trechos com muito ruído podem não ser reconhecidos (o programa avisa quantos).
 
-    
-* Transcrição de Áudios
-  * Transcreve arquivos de áudio (MP3, MP4, WAV) em texto utilizando a biblioteca speech_recognition.
-  * Os arquivos de áudio são convertidos para o formato WAV, divididos em partes menores para processamento, e então transcritos.
-    
-* Interface Gráfica
-  * Desenvolvida com tkinter, a interface gráfica permite fácil interação do usuário com a aplicação.
-  * Modo escuro disponível para melhor visualização.
- 
-    
-## Instruções para Execução
-* Clone este repositório:
+---
 
+## Para desenvolvedores
 
-``` 
-git clone https://github.com/LuixCarlos00/Analizador-De-Video-Youtube.git
-cd Analizador-De-Video-Youtub
-````
- 
-
-### Passo 1 Criar um Ambiente Virtual (opcional, mas recomendado)
-* Criar um ambiente virtual ajuda a gerenciar dependências específicas do projeto.
-``` 
-python -m venv myenv
-myenv\Scripts\activate   
-```
-
-### Passo 2 Instalação das Dependências
-* Crie um arquivo chamado requirements.txt na pasta do seu projeto e adicione as seguintes linhas:
-```
-pytube
-SpeechRecognition
-pydub
+### Estrutura
 
 ```
-
- ## Instalar as Dependências:
-* Use o pip para instalar todas as dependências listadas no requirements.txt.
-``` 
-pip install -r requirements.txt
+main.py                  # ponto de entrada
+analisador/
+  config.py              # pastas de saída, idioma, ffmpeg embutido
+  utils.py               # validação de URL, parsing de listas, nomes de arquivo
+  downloader.py          # download com progresso e cancelamento (pytubefix)
+  transcriber.py         # transcrição em trechos (SpeechRecognition + pydub)
+  gui.py                 # interface Tkinter (threads se comunicam com a UI por fila)
+tests/                   # testes unitários (pytest), sem acesso à rede
+instalar.ps1 / .bat      # instalador Windows (gera .exe com PyInstaller)
+instalar.sh              # instalador Linux/macOS
+main.spec                # configuração do PyInstaller
 ```
 
-# Instalar ffmpeg
-> [!IMPORTANT]
-> pydub requer ffmpeg para manipulação de áudio. Instale ffmpeg conforme as instruções específicas para o seu sistema operacional.
-* Windows: Baixe o executável de ffmpeg.org e adicione o diretório binário ao PATH do sistema.
+### Rodando a partir do código
 
-### Passo 3: Código Fonte 
-- Executar o Código Fonte:
+Requer Python 3.9+ com tkinter e o [ffmpeg](https://ffmpeg.org/download.html) no PATH.
 
-```
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
 python main.py
-
 ```
-### Veja mais:
- -  [link](https://luizcarlos-cv.netlify.app/) 
 
-### Sinta se a vontade para melhorar e acrecentar funionalidades ao projeto. :rocket:
-  
-### Algumas funionalidades possiveis são :
-    
-  - Download de Playlists:
-    * Permitir o download de todos os vídeos de uma playlist do YouTube.
+### Testes
 
-  - Conversão de Formatos de Áudio/Vídeo:
-     * Adicionar a capacidade de converter arquivos de áudio e vídeo para diferentes formatos (e.g., MP4, MP3, WAV).
+```bash
+python -m pytest
+```
 
-  - Opções de Qualidade de Download:
-     * Permitir que o usuário escolha a qualidade do vídeo ou áudio a ser baixado.
+### Gerar o executável manualmente
 
-  - Histórico de Downloads:
-    * Manter um registro dos vídeos e áudios baixados, permitindo que os usuários vejam e acessem downloads anteriores.
+```bash
+pyinstaller main.spec --noconfirm
+```
 
-  - Integração com Serviços de Nuvem:
-    * Adicionar a opção de enviar automaticamente os arquivos baixados para serviços de nuvem como Google Drive, Dropbox, etc.
+O resultado fica em `dist/AnalisadorYoutube/`. No Windows, o `instalar.ps1` faz isso e ainda instala.
 
-  - Controle de Erros Aprimorado:
-    * Implementar um sistema de log para capturar e registrar erros detalhadamente.
+---
 
-  - Interface Multilingue:
-    * Adicionar suporte a múltiplos idiomas na interface gráfica.
+## Ideias para o futuro
 
+- Download de playlists inteiras
+- Escolha de qualidade do vídeo (acima de 720p, juntando vídeo e áudio com ffmpeg)
+- Conversão do áudio para MP3
+- Escolha do idioma da transcrição na interface
+- Histórico de downloads
 
+### Veja mais
 
+- [Portfólio](https://luizcarlos-cv.netlify.app/)
