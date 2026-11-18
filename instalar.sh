@@ -63,7 +63,7 @@ fi
 # --------------------------------------------------------- pacotes do sistema
 python_ok() {
     command -v python3 >/dev/null 2>&1 &&
-    python3 -c 'import sys, tkinter, venv, ensurepip; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1
+    python3 -c 'import sys, tkinter, venv, ensurepip; sys.exit(sys.version_info < (3, 10))' >/dev/null 2>&1
 }
 
 # Instala so o que falta: pedir "ffmpeg" quando ja existe outro ffmpeg instalado
@@ -112,12 +112,12 @@ etapa "Verificando Python, tkinter e ffmpeg"
 if python_ok && command -v ffmpeg >/dev/null 2>&1; then
     ok "Tudo presente"
 elif [[ "$SEM_SISTEMA" -eq 1 ]]; then
-    python_ok || erro "Falta Python 3.9+ com tkinter/venv (rode sem --sem-sistema para instalar)."
+    python_ok || erro "Falta Python 3.10+ com tkinter/venv (rode sem --sem-sistema para instalar)."
     ok "ffmpeg ausente: a transcricao nao vai funcionar ate instala-lo (--sem-sistema ativo)."
 else
     ok "Instalando o que falta (pode pedir sua senha)"
     instalar_pacotes_sistema
-    python_ok || erro "Python 3.9+ com tkinter/venv continua indisponivel (sua distribuicao pode ter um Python antigo demais)."
+    python_ok || erro "Python 3.10+ com tkinter/venv continua indisponivel (sua distribuicao pode ter um Python antigo demais)."
 fi
 
 # ------------------------------------------------------------------- app
